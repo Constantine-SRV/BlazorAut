@@ -18,7 +18,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 
 string pfxFilePath = "";
-
+//github
 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 {
     pfxFilePath = @"C:\Users\1\source\repos\cert_webapi_pan4_com\webaws_pam4_com.pfx";
