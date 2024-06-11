@@ -1,16 +1,21 @@
 name: Build and Archive
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      command:
+        type: choice
+        description: Build command
+        default: build
+        options:
+          - build
+          - test
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      COMMAND: ${{ github.event.inputs.command }}
 
     steps:
     - name: Checkout code
@@ -24,14 +29,21 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
 
-    - name: Build
-      run: dotnet publish -c Release -r linux-x64 --self-contained -o output
-
-    - name: Archive output
-      run: tar -czvf myapp.tar.gz -C output .
+    - name: Execute command
+      run: |
+        if [[ "${{ env.COMMAND }}" == "build" ]]; then
+          echo "Running build..."
+          dotnet publish -c Release -r linux-x64 --self-contained -o output
+          tar -czvf BlazorAut.tar.gz -C output .
+        elif [[ "${{ env.COMMAND }}" == "test" ]]; then
+          echo "Running tests..."
+          dotnet test
+        fi
 
     - name: Upload artifact
+      if: always()
       uses: actions/upload-artifact@v2
       with:
-        name: myapp
-        path: myapp.tar.gz
+        name: BlazorAut
+        path: BlazorAut.tar.gz
+        if-no-files-found: ignore
