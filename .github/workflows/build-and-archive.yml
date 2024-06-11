@@ -39,6 +39,7 @@ jobs:
         elif [[ "${{ env.COMMAND }}" == "test" ]]; then
           echo "Running tests..."
           dotnet test
+        fi
 
     - name: Upload artifact
       if: always()
