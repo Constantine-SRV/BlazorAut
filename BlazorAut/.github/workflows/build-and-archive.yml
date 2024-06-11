@@ -1,0 +1,37 @@
+name: Build and Archive
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v2
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet publish -c Release -r linux-x64 --self-contained -o output
+
+    - name: Archive output
+      run: tar -czvf myapp.tar.gz -C output .
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: myapp
+        path: myapp.tar.gz

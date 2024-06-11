@@ -24,4 +24,8 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.6.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include=".github\workflows\build-and-archive.yml" />
+  </ItemGroup>
+
 </Project>
