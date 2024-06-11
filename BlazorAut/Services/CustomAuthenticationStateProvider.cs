@@ -126,7 +126,8 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
         }
         else
         {
-            userToken.Token = tokenString;
+            tokenString=userToken.Token;
+           // userToken.Token = tokenString;
             userToken.Expiration = tokenDescriptor.Expires.Value;
             userToken.CreatedAt = DateTime.UtcNow;
 

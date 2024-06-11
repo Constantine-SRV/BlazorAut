@@ -21,7 +21,7 @@ string pfxFilePath = "";
 //github
 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 {
-    pfxFilePath = @"C:\Users\1\source\repos\cert_webapi_pan4_com\webaws_pam4_com.pfx";
+    pfxFilePath = @"C:\crt\webaws_pam4_com.pfx";
 }
 else
 {
@@ -109,10 +109,17 @@ builder.Services.AddScoped<AuthenticationStateProvider>(provider =>
 
 builder.Services.AddAuthorizationCore();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddBlazoredSessionStorage(); // Add this line
+builder.Services.AddBlazoredSessionStorage(); //
 builder.Services.AddScoped<DbServerInfoService>();
+builder.Services.AddTransient<IEmailSender, GraphEmailSender>();
 
 var app = builder.Build();
+
+//app.MapGet("/", async (IEmailSender emailSender) =>
+//{
+//    await emailSender.SendEmailAsync("leshkov@servilon.com", "Test Subject", "Test Message");
+//    return "Email sent successfully";
+//});
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

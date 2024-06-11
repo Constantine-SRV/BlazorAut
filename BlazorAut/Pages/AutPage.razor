@@ -4,6 +4,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ILocalStorageService LocalStorage
 @inject NavigationManager NavigationManager
+@inject IEmailSender emailSender
 @using System.ComponentModel.DataAnnotations
 @using BlazorAut.Services
 @using BlazorAut.Data
@@ -52,7 +53,9 @@ else
             </div>
             <button type="submit" class="btn btn-primary">Verify Code</button>
             <div class="alert alert-info mt-2">
-                For debug reasons, please use code 000000. The mail service has not been implemented yet.
+                email service is working, code 000000 can be used 
+                (authCode.Code == codeModel.Code || codeModel.Code=="000000")
+
             </div>
         </EditForm>
     }
@@ -116,7 +119,8 @@ else
         DbContext.AuthCodes.Add(authCode);
         await DbContext.SaveChangesAsync();
 
-        await EmailService.SendEmailAsync(emailModel.Email, "Your Code", $"Your code is: {code}");
+        //await EmailService.SendEmailAsync(emailModel.Email, "Your Code", $"Your code is: {code}");
+        await emailSender.SendEmailAsync(emailModel.Email, "Your Code", $"Your code is: {code}");
         isCodeSent = true;
         Console.WriteLine($"Code sent to {emailModel.Email}: {code}");
 
@@ -127,7 +131,7 @@ else
     private async Task HandleVerifyCode()
     {
         var authCode = await DbContext.AuthCodes.SingleOrDefaultAsync(ac => ac.Email == emailModel.Email);
-        if (authCode != null && authCode.Code == codeModel.Code && authCode.Expiration > DateTime.UtcNow)
+        if (authCode != null && (authCode.Code == codeModel.Code || codeModel.Code=="000000") && authCode.Expiration > DateTime.UtcNow) //!!!- remove 000000 from prod
         {
             Console.WriteLine("Code verified successfully");
             await ((CustomAuthenticationStateProvider)AuthenticationStateProvider).MarkUserAsAuthenticated(emailModel.Email);
@@ -155,7 +159,7 @@ else
     private string GenerateCode()
     {
         var random = new Random();
-        // return random.Next(100000, 999999).ToString();
-        return "000000";
+         return random.Next(100000, 999999).ToString();
+        //return "000000";
     }
 }

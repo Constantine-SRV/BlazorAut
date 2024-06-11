@@ -16,6 +16,7 @@ namespace BlazorAut.Data
         public DbSet<User> Users { get; set; }
         public DbSet<UserToken> UserTokens { get; set; }
         public DbSet<DbServerInfo> DbServerInfo { get; set; }
+        public DbSet<AzureAdOptions> AzureAdOptions { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
