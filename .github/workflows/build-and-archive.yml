@@ -62,4 +62,5 @@ jobs:
           --account-key $AZURE_STORAGE_KEY \
           --container-name web \
           --file BlazorAut.tar.gz \
-          --name BlazorAut.tar.gz
+          --name BlazorAut.tar.gz \
+          --overwrite
