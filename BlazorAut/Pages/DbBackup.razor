@@ -1,0 +1,55 @@
+﻿@page "/dbbackup"
+@inject BlazorAut.Services.DbBackupService DbBackupService
+@using System.Threading
+
+<PageTitle>Database Backup</PageTitle>
+
+<h3>Database Backup</h3>
+
+<button class="btn btn-primary" @onclick="StartBackup">Start Backup</button>
+
+<div>
+    <h4>Output</h4>
+    <pre>@output</pre>
+</div>
+
+<div>
+    <h4>Error</h4>
+    <pre>@error</pre>
+</div>
+
+@code {
+    private string output;
+    private string error;
+    private CancellationTokenSource cts;
+
+    private async Task StartBackup()
+    {
+        output = string.Empty;
+        error = string.Empty;
+        cts = new CancellationTokenSource();
+
+        try
+        {
+            await DbBackupService.RunBackup(
+                onOutputReceived: data => InvokeAsync(() => output += data + "\n"),
+                onErrorReceived: data => InvokeAsync(() => error += data + "\n"),
+                cts.Token
+            );
+        }
+        catch (OperationCanceledException)
+        {
+            output += "\nBackup canceled.";
+        }
+        catch (Exception ex)
+        {
+            error += $"\nException: {ex.Message}";
+        }
+    }
+
+    public void Dispose()
+    {
+        cts?.Cancel();
+        cts?.Dispose();
+    }
+}

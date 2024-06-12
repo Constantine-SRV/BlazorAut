@@ -112,6 +112,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddBlazoredSessionStorage(); //
 builder.Services.AddScoped<DbServerInfoService>();
 builder.Services.AddTransient<IEmailSender, GraphEmailSender>();
+builder.Services.AddTransient<DbBackupService>();
+
 
 var app = builder.Build();
 
