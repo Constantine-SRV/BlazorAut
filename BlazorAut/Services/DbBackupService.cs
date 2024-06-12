@@ -10,13 +10,13 @@ namespace BlazorAut.Services
     {
         private readonly string _connectionString;
         private readonly string _accountName;
-        private readonly string _accountKey;
+      
 
         public DbBackupService(IConfiguration configuration)
         {
             _connectionString = configuration.GetConnectionString("DefaultConnection");
             _accountName = "constantine2zu";
-            _accountKey = Environment.GetEnvironmentVariable("AZURE_STORAGE_KEY");
+          
         }
 
         public async Task RunBackup(Action<string> onOutputReceived, Action<string> onErrorReceived, CancellationToken cancellationToken)
@@ -79,7 +79,7 @@ namespace BlazorAut.Services
 
         public async Task UploadBackup(Action<string> onOutputReceived, Action<string> onErrorReceived, CancellationToken cancellationToken)
         {
-            string command = $"sudo -E az storage blob upload --account-name {_accountName} --account-key {_accountKey} --container-name web --file ./dbwebaws_backup.dump --name dbwebaws_backup.dump --overwrite";
+            string command = $"sudo -E az storage blob upload --account-name {_accountName} --account-key $AZURE_STORAGE_KEY --container-name web --file ./dbwebaws_backup.dump --name dbwebaws_backup.dump --overwrite";
 
             var psi = new ProcessStartInfo
             {
