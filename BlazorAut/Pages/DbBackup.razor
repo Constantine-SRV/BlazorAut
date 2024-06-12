@@ -7,6 +7,7 @@
 <h3>Database Backup</h3>
 
 <button class="btn btn-primary" @onclick="StartBackup">Start Backup</button>
+<button class="btn btn-secondary" @onclick="UploadBackup">Upload Backup to Blob</button>
 
 <div>
     <h4>Output</h4>
@@ -40,6 +41,30 @@
         catch (OperationCanceledException)
         {
             output += "\nBackup canceled.";
+        }
+        catch (Exception ex)
+        {
+            error += $"\nException: {ex.Message}";
+        }
+    }
+
+    private async Task UploadBackup()
+    {
+        output = string.Empty;  // Clear previous output
+        error = string.Empty;
+        cts = new CancellationTokenSource();
+
+        try
+        {
+            await DbBackupService.UploadBackup(
+                onOutputReceived: data => InvokeAsync(() => output += data + "\n"),
+                onErrorReceived: data => InvokeAsync(() => error += data + "\n"),
+                cts.Token
+            );
+        }
+        catch (OperationCanceledException)
+        {
+            output += "\nUpload canceled.";
         }
         catch (Exception ex)
         {
