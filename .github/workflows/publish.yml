@@ -59,4 +59,4 @@ jobs:
       - name: Create Release
         run: |
           TAG_NAME=build-all-$(date +'%Y%m%d%H%M%S')
-          gh release create $TAG_NAME ./publish/linux/AWS_Inventory ./publish/windows/AWS_Inventory.exe -t "Release $TAG_NAME"
+          gh release create $TAG_NAME ./publish/linux/BlazorAut ./publish/windows/BlazorAut.exe -t "Release $TAG_NAME"
