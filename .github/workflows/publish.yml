@@ -1,0 +1,62 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      command:
+        description: 'Build command'
+        required: true
+        default: 'build-all'
+        type: choice
+        options:
+          - build-all
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 8.x
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build project for Linux
+        run: dotnet publish --self-contained -r linux-x64 -p:PublishSingleFile=true -c Release -o ./publish/linux
+
+      - name: Build project for Windows
+        run: dotnet publish --self-contained -r win-x64 -p:PublishSingleFile=true -c Release -o ./publish/windows
+
+      - name: List root directory
+        run: ls -la ./
+
+      - name: List publish directory
+        run: ls -la ./publish
+
+      - name: List Linux publish directory
+        run: ls -la ./publish/linux
+
+      - name: List Windows publish directory
+        run: ls -la ./publish/windows
+
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gh
+
+      - name: Authenticate GitHub CLI
+        run: echo ${{ secrets.GH_TOKEN }} | gh auth login --with-token
+
+      - name: Create Release
+        run: |
+          TAG_NAME=build-all-$(date +'%Y%m%d%H%M%S')
+          gh release create $TAG_NAME ./publish/linux/AWS_Inventory ./publish/windows/AWS_Inventory.exe -t "Release $TAG_NAME"
