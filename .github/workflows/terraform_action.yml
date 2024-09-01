@@ -1,0 +1,72 @@
+name: TF Azure Action
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        type: choice
+        description: Select Terraform command to execute
+        default: plan
+        options:
+          - plan
+          - apply
+          - destroy
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    env:
+      ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+      ARM_SAS_TOKEN: ${{ secrets.ARM_SAS_TOKEN }}
+      TF_COMMAND: ${{ github.event.inputs.command }}
+      TF_VAR_hetzner_dns_key: ${{ secrets.TF_VAR_HETZNER_DNS_KEY}}
+      TF_VAR_win_user: ${{ secrets.TF_VAR_WIN_USER}}
+      TF_VAR_win_password: ${{ secrets.TF_VAR_WIN_PASSWORD}}
+      TF_VAR_dns_comp_name: ${{ secrets.TF_VAR_DNS_COMP_NAME}}
+      TF_VAR_ssh_public_key: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY}}
+      TF_VAR_ssh_private_key: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
+      TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD}}
+      TF_VAR_arm_access_key: ${{ secrets.ARM_ACCESS_KEY}}
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v1
+      with:
+        terraform_version: '1.1.0'
+
+
+    - name: Retrieve SSH Key from Azure Storage
+      run: |
+        echo "Retrieving SSH Key from Azure Storage..."
+        az storage blob download --container-name key --name az_ssh_key.pem --file az_ssh_key.pem --account-name constantine2zu --auth-mode key --account-key ${{ secrets.ARM_ACCESS_KEY }}
+        chmod 600 az_ssh_key.pem
+        echo "SSH Key retrieved successfully."
+      shell: bash
+          
+
+    - name: Terraform Init
+      run: terraform init -backend-config="access_key=${{ secrets.ARM_ACCESS_KEY }}"
+
+    - name: Terraform Command
+      run: |
+        echo "Executing Terraform $TF_COMMAND"
+        case $TF_COMMAND in
+          plan)
+            terraform plan 
+            ;;
+          apply)
+            terraform apply -auto-approve 
+            ;;
+          destroy)
+            terraform destroy -auto-approve 
+            ;;
+          *)
+            echo "No valid command selected."
+            ;;
+        esac
