@@ -52,7 +52,8 @@ jobs:
 
     - name: Terraform Init
       run: terraform init -backend-config="access_key=${{ secrets.ARM_ACCESS_KEY }}"
-
+      working-directory: ./terraform
+      
     - name: Terraform Command
       run: |
         echo "Executing Terraform $TF_COMMAND"
