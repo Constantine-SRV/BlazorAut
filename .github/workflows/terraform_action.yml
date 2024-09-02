@@ -33,12 +33,13 @@ jobs:
       TF_VAR_arm_access_key: ${{ secrets.ARM_ACCESS_KEY}}
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v2
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v1
       with:
-        terraform_version: '1.1.0'
+        terraform_version: '1.0.11'
 
 
     - name: Retrieve SSH Key from Azure Storage
