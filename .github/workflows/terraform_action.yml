@@ -41,6 +41,12 @@ jobs:
       with:
         terraform_version: '1.0.11'
 
+    - name: 'List files for terraform'
+      run: ls -la ./terraform
+      #working-directory: ./terraform
+      
+    - name: 'List files for ./'
+      run: ls -la ./
 
     - name: Retrieve SSH Key from Azure Storage
       run: |
@@ -50,13 +56,6 @@ jobs:
         echo "SSH Key retrieved successfully."
       shell: bash
     
-    - name: 'List files for terraform'
-      run: ls -la ./terraform
-      #working-directory: ./terraform
-      
-    - name: 'List files for ./'
-      run: ls -la ./
-
     - name: Terraform Init
       run: terraform init -backend-config="access_key=${{ secrets.ARM_ACCESS_KEY }}"
       working-directory: ./terraform
@@ -78,3 +77,4 @@ jobs:
             echo "No valid command selected."
             ;;
         esac
+      working-directory: ./terraform
