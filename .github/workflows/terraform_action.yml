@@ -41,10 +41,6 @@ jobs:
       with:
         terraform_version: '1.0.11'
 
-    - name: 'List files for terraform'
-      run: ls -la ./terraform
-      #working-directory: ./terraform
-      
     - name: 'List files for ./'
       run: ls -la ./
 
@@ -55,7 +51,12 @@ jobs:
         chmod 600 az_ssh_key.pem
         echo "SSH Key retrieved successfully."
       shell: bash
+      working-directory: ./terraform
     
+    - name: 'List files for ./terraform'
+      run: ls -la ./
+      working-directory: ./terraform
+
     - name: Terraform Init
       run: terraform init -backend-config="access_key=${{ secrets.ARM_ACCESS_KEY }}"
       working-directory: ./terraform
