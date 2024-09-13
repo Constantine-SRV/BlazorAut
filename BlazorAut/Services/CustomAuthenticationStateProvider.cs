@@ -172,21 +172,19 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
     }
 
+    public async Task LogoutThisDeviceAsync()
+    {
+        // delete from this device
+        await _jsRuntime.InvokeVoidAsync("deleteCookie", "Kticket000", _dotNetRef);
 
-    //private string GenerateJwtToken(string email)
-    //{
-    //    var tokenHandler = new JwtSecurityTokenHandler();
-    //    var key = Encoding.ASCII.GetBytes(_secretKey);
-    //    var tokenDescriptor = new SecurityTokenDescriptor
-    //    {
-    //        Subject = new ClaimsIdentity(new[] { new Claim(ClaimTypes.Name, email) }),
-    //        Expires = DateTime.UtcNow.AddHours(1),
-    //        SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-    //    };
+        // refresh
+        var identity = new ClaimsIdentity();
+        var user = new ClaimsPrincipal(identity);
+        NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
+    }
 
-    //    var token = tokenHandler.CreateToken(tokenDescriptor);
-    //    return tokenHandler.WriteToken(token);
-    //}
+
+
 
     private IEnumerable<Claim> ParseClaimsFromJwt(string jwt)
     {

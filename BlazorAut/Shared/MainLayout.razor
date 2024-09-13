@@ -1,11 +1,13 @@
 ﻿@inherits LayoutComponentBase
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
+@using BlazorAut.Services
+@inject ViewOptionService ViewOption
 
 <PageTitle>BlazorAut</PageTitle>
 
 <div class="page">
-    <div class="sidebar">
+    <div class="sidebar @ViewOption.NavBarClass">
         <NavMenu />
     </div>
 
@@ -13,7 +15,18 @@
         <div class="top-row px-4">
             <AuthorizeView>
                 <Authorized>
-                    <p>Addres: @Navigation.Uri User: @(authenticationState?.User?.Identity?.Name ?? "Anonymous")  <a href="javascript:void(0)" @onclick="Logout">Logout</a> </p>
+                    <div class="center-container">
+                        <button class="btn-left" @onclick="ViewOption.Toggle">
+                            @(ViewOption.NavBarClass == "d-none" ? ">>" : "<<")
+                        </button>
+                    </div>
+
+                    <p>
+                        Addres: @Navigation.Uri User: @(authenticationState?.User?.Identity?.Name ?? "Anonymous")
+                        <a href="javascript:void(0)" @onclick="Logout">Logout</a> |
+                        <a href="javascript:void(0)" @onclick="LogoutAll">Logout All</a>
+                    </p>
+
                 </Authorized>
                 <NotAuthorized>
                     <p>Addres: @Navigation.Uri  Please Login</p>
@@ -53,11 +66,20 @@
     {
         if (AuthenticationStateProvider is CustomAuthenticationStateProvider customAuthProvider)
         {
+            // this device
+            await customAuthProvider.LogoutThisDeviceAsync();
+            Navigation.NavigateTo("/logout", true);
+        }
+    }
+
+    private async Task LogoutAll()
+    {
+        if (AuthenticationStateProvider is CustomAuthenticationStateProvider customAuthProvider)
+        {
+            // delete from DB
             await customAuthProvider.LogoutAsync();
             Navigation.NavigateTo("/logout", true);
-
         }
-
     }
 
     private void HandleLocationChanged(object sender, LocationChangedEventArgs e)

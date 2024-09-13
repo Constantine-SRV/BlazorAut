@@ -5,6 +5,7 @@
 @inject ILocalStorageService LocalStorage
 @inject NavigationManager NavigationManager
 @inject IEmailSender emailSender
+@inject NavigationManager Navigation
 @using System.ComponentModel.DataAnnotations
 @using BlazorAut.Services
 @using BlazorAut.Data
@@ -23,7 +24,8 @@
 
 @if (authenticationState?.User?.Identity?.IsAuthenticated ?? false)
 {
-    <button @onclick="HandleLogout" class="btn btn-primary">Logoff</button>
+    <button @onclick="LogoutAllDevices" class="btn btn-primary">Logoff All Devices</button>
+    <button @onclick="LogouThisDevice" class="btn btn-primary">Logoff only this browser</button>
 }
 else
 {
@@ -147,13 +149,24 @@ else
         }
     }
 
-    private async Task HandleLogout()
+    private async Task LogoutAllDevices()
     {
         await ((CustomAuthenticationStateProvider)AuthenticationStateProvider).LogoutAsync();
         authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         isCodeVerified = false;
         isCodeSent = false;
         StateHasChanged(); // Обновить UI
+        Navigation.NavigateTo("/logout", true);
+    }
+
+    private async Task LogouThisDevice()
+    {
+        await ((CustomAuthenticationStateProvider)AuthenticationStateProvider).LogoutThisDeviceAsync();
+        authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        isCodeVerified = false;
+        isCodeSent = false;
+        StateHasChanged(); // Обновить UI
+        Navigation.NavigateTo("/logout", true);
     }
 
     private string GenerateCode()

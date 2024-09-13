@@ -9,3 +9,8 @@ function setCookie(name, value, days, dotNetHelper) {
 
     dotNetHelper.invokeMethodAsync('RefreshAuthenticationState');
 }
+function deleteCookie(name, dotNetHelper) {
+    document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:01 GMT; path=/; samesite=strict; secure';
+
+    dotNetHelper.invokeMethodAsync('RefreshAuthenticationState');
+}

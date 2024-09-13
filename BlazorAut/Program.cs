@@ -113,7 +113,7 @@ builder.Services.AddBlazoredSessionStorage(); //
 builder.Services.AddScoped<DbServerInfoService>();
 builder.Services.AddTransient<IEmailSender, GraphEmailSender>();
 builder.Services.AddTransient<DbBackupService>();
-
+builder.Services.AddSingleton<ViewOptionService>(); //hide menue service
 
 var app = builder.Build();
 
