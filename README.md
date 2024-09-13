@@ -1,4 +1,3 @@
 
-This project was created for testing AWS and ALB. 
-Two web servers store configuration and session information in a PostgreSQL database. 
-Most of the code was written by ChatGPT.
+This project was created for testing  autentification by e-mail
+https://webaz7.pam4.com/ you can try it
