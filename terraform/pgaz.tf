@@ -12,7 +12,7 @@ resource "azurerm_postgresql_flexible_server" "pg_db" {
   #sku_name = "GP_Standard_D2s_v3" 
   #sku_name  = "Standard_B2ms" #wrong
   #sku_name = "B_Standard_B1ms" - Ok minimal
-  sku_name = "Standard_B2s"
+  sku_name = "B_Standard_B2s"
 
   storage_mb                  = 32768  # 32 GB
   backup_retention_days       = 7
