@@ -18,6 +18,14 @@ echo "!-Downloading PFX file from Azure..."
 az storage blob download --container-name $AZURE_CONTAINER_NAME --name $PFX_FILE_NAME --file /etc/ssl/certs/webaws_pam4_com.pfx --account-name $AZURE_STORAGE_ACCOUNT --auth-mode key --account-key ${ACC_KEY}
 sudo chmod 600 /etc/ssl/certs/webaws_pam4_com.pfx
 
+# Stop the BlazorAut service if it exists
+if systemctl is-active --quiet BlazorAut; then
+  echo "!-Stopping BlazorAut service..."
+  sudo systemctl stop BlazorAut
+else
+  echo "BlazorAut service is not running, proceeding with setup..."
+fi
+
 # Download and setup the web application
 sudo mkdir -p /var/www/BlazorAut
 echo "!-Downloading web app archive..."
