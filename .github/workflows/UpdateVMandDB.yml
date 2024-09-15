@@ -2,6 +2,16 @@ name: Update VM and Restore Database
 
 on:
   workflow_dispatch:
+    inputs:
+      task:
+        description: 'Select task to execute:'
+        required: true
+        default: 'all-task'
+        type: choice
+        options:
+          - restore-database
+          - update-app
+          - all-task
 
 jobs:
   update-vm:
@@ -35,13 +45,6 @@ jobs:
         echo "VM_IP=${IP_ADDRESS}"
         echo "VM_IP=${IP_ADDRESS}" >> $GITHUB_ENV
 
-    - name: Get VM FQDN (DNS Name)
-      id: get-vm-dns
-      run: |
-        VM_DNS=$(az vm show --resource-group azweb-resources --name vm-20-7 --query "osProfile.computerName" -o tsv)
-        echo "VM_DNS=${VM_DNS}"
-        echo "VM_DNS=${VM_DNS}" >> $GITHUB_ENV
-
     - name: Install SSH client
       run: sudo apt-get update && sudo apt-get install -y openssh-client
 
@@ -53,21 +56,19 @@ jobs:
         echo "SSH Key retrieved successfully."
       shell: bash
 
-    - name: Print VM IP and DNS
+    - name: Print VM IP
       run: |
         echo "VM IP: ${{ env.VM_IP }}"
-        echo "VM DNS: ${{ env.VM_DNS }}"
 
-    - name: Connect to VM and update instance
+    - name: Execute Task
       run: |
         ssh -o StrictHostKeyChecking=no -i az_ssh_key.pem ubuntu@${{ env.VM_IP }} << EOF
-        
+  
           sudo mv /tmp/setup_instance.sh /usr/local/bin/setup_instance.sh
           sudo chmod +x /usr/local/bin/setup_instance.sh
           sudo mv /tmp/restore_pg_dump.sh /usr/local/bin/restore_pg_dump.sh
           sudo chmod +x /usr/local/bin/restore_pg_dump.sh
 
-          
           export PFX_FILE_NAME='webaws_pam4_com.pfx'
           export APP_NAME='BlazorAut'
           export DB_USER='dbuser'
@@ -75,7 +76,24 @@ jobs:
           export DB_NAME='dbwebaws'
           export ACC_KEY=${ACC_KEY}
 
-          
-          sudo -E /usr/local/bin/restore_pg_dump.sh
-          sudo -E /usr/local/bin/setup_instance.sh
+  
+          case "${{ github.event.inputs.task }}" in
+            "restore-database")
+              echo "Restoring Database..."
+              sudo -E /usr/local/bin/restore_pg_dump.sh
+              ;;
+            "update-app")
+              echo "Updating Application..."
+              sudo -E /usr/local/bin/setup_instance.sh
+              ;;
+            "all-task")
+              echo "Executing All Tasks..."
+              sudo -E /usr/local/bin/restore_pg_dump.sh
+              sudo -E /usr/local/bin/setup_instance.sh
+              ;;
+            *)
+              echo "Invalid option"
+              exit 1
+              ;;
+          esac
         EOF
