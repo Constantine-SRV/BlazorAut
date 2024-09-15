@@ -45,21 +45,26 @@ jobs:
         echo "VM_IP=${IP_ADDRESS}"
         echo "VM_IP=${IP_ADDRESS}" >> $GITHUB_ENV
 
-    - name: Install SSH client
+    - name: Install SSH client and SCP
       run: sudo apt-get update && sudo apt-get install -y openssh-client
 
     - name: Retrieve SSH Key from Azure Storage
+      working-directory: ./terraform
       run: |
         echo "Retrieving SSH Key from Azure Storage..."
         az storage blob download --container-name key --name az_ssh_key.pem --file az_ssh_key.pem --account-name constantine2zu --auth-mode key --account-key ${{ secrets.ARM_ACCESS_KEY }}
         chmod 600 az_ssh_key.pem
         echo "SSH Key retrieved successfully."
       shell: bash
-      working-directory: ./terraform
 
-    - name: 'List files for ./terraform'
-      run: ls -la ./
+    - name: Copy setup_instance.sh and restore_pg_dump.sh to VM
       working-directory: ./terraform
+      run: |
+        echo "Copying setup_instance.sh and restore_pg_dump.sh to VM..."
+        scp -o StrictHostKeyChecking=no -i az_ssh_key.pem setup_instance.sh ubuntu@${{ env.VM_IP }}:/tmp/setup_instance.sh
+        scp -o StrictHostKeyChecking=no -i az_ssh_key.pem restore_pg_dump.sh ubuntu@${{ env.VM_IP }}:/tmp/restore_pg_dump.sh
+        echo "Files copied successfully."
+
     - name: Print VM IP
       run: |
         echo "VM IP: ${{ env.VM_IP }}"
@@ -68,13 +73,13 @@ jobs:
       working-directory: ./terraform
       run: |
         ssh -o StrictHostKeyChecking=no -i az_ssh_key.pem ubuntu@${{ env.VM_IP }} << EOF
-       
+         
           sudo mv /tmp/setup_instance.sh /usr/local/bin/setup_instance.sh
           sudo chmod +x /usr/local/bin/setup_instance.sh
           sudo mv /tmp/restore_pg_dump.sh /usr/local/bin/restore_pg_dump.sh
           sudo chmod +x /usr/local/bin/restore_pg_dump.sh
 
-         
+          
           export PFX_FILE_NAME='webaws_pam4_com.pfx'
           export APP_NAME='BlazorAut'
           export DB_USER='dbuser'
@@ -82,7 +87,7 @@ jobs:
           export DB_NAME='dbwebaws'
           export ACC_KEY=${ACC_KEY}
 
-          
+         
           case "${{ github.event.inputs.task }}" in
             "restore-database")
               echo "Restoring Database..."
