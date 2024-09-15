@@ -37,16 +37,21 @@ jobs:
     - name: Install SSH client
       run: sudo apt-get update && sudo apt-get install -y openssh-client
 
+    - name: Retrieve SSH Key from Azure Storage
+      run: |
+        az storage blob download --container-name key --name az_ssh_key.pem --file az_ssh_key.pem --account-name your_azure_storage_account --account-key ${{ secrets.ARM_ACCESS_KEY }}
+        chmod 600 az_ssh_key.pem
+
     - name: Connect to VM and update instance
       run: |
-        ssh -o StrictHostKeyChecking=no -i ${{ secrets.SSH_PRIVATE_KEY }} user@${{ env.VM_IP }} << EOF
-          # Переносим скрипты на сервер
+        ssh -o StrictHostKeyChecking=no -i az_ssh_key.pem ubuntu@${{ env.VM_IP }} << EOF
+          
           sudo mv /tmp/setup_instance.sh /usr/local/bin/setup_instance.sh
           sudo chmod +x /usr/local/bin/setup_instance.sh
           sudo mv /tmp/restore_pg_dump.sh /usr/local/bin/restore_pg_dump.sh
           sudo chmod +x /usr/local/bin/restore_pg_dump.sh
 
-          # Экспортируем переменные окружения
+          
           export PFX_FILE_NAME='webaws_pam4_com.pfx'
           export APP_NAME='BlazorAut'
           export DB_USER='dbuser'
@@ -54,7 +59,7 @@ jobs:
           export DB_NAME='dbwebaws'
           export ACC_KEY=${ACC_KEY}
 
-          # Выполняем скрипты
+          
           sudo -E /usr/local/bin/restore_pg_dump.sh
           sudo -E /usr/local/bin/setup_instance.sh
         EOF
