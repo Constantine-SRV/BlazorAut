@@ -30,7 +30,6 @@ PGPASSWORD=$DB_PASS psql "sslmode=require host=$DB_HOST port=5432 user=$DB_USER 
 
 
 echo "!-Restoring database from dump..."
-PGPASSWORD=$DB_PASS pg_restore -h $DB_HOST -U $DB_USER -d $DB_NAME -v ~/dbwebaws_backup.dump || echo "Failed to restore database"
-
+PGPASSWORD=$DB_PASS pg_restore --clean --if-exists -h $DB_HOST -U $DB_USER -d $DB_NAME -v ~/dbwebaws_backup.dump || echo "Failed to restore database"
 
 echo "1-Database restoration complete."
