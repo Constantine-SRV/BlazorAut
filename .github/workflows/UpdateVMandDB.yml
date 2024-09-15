@@ -61,13 +61,13 @@ jobs:
     - name: Connect to VM and update instance
       run: |
         ssh -o StrictHostKeyChecking=no -i az_ssh_key.pem ubuntu@${{ env.VM_IP }} << EOF
-          # Переносим скрипты на сервер
+        
           sudo mv /tmp/setup_instance.sh /usr/local/bin/setup_instance.sh
           sudo chmod +x /usr/local/bin/setup_instance.sh
           sudo mv /tmp/restore_pg_dump.sh /usr/local/bin/restore_pg_dump.sh
           sudo chmod +x /usr/local/bin/restore_pg_dump.sh
 
-          # Экспортируем переменные окружения
+          
           export PFX_FILE_NAME='webaws_pam4_com.pfx'
           export APP_NAME='BlazorAut'
           export DB_USER='dbuser'
@@ -75,7 +75,7 @@ jobs:
           export DB_NAME='dbwebaws'
           export ACC_KEY=${ACC_KEY}
 
-          # Выполняем скрипты
+          
           sudo -E /usr/local/bin/restore_pg_dump.sh
           sudo -E /usr/local/bin/setup_instance.sh
         EOF
