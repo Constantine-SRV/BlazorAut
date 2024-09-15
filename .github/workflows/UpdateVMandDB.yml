@@ -31,14 +31,14 @@ jobs:
     - name: Get VM Public IP
       id: get-vm-ip
       run: |
-        IP_ADDRESS=$(az vm list-ip-addresses --resource-group azweb-resources --name vm_20_7 --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" -o tsv)
+        IP_ADDRESS=$(az vm list-ip-addresses --resource-group azweb-resources --name vm-20-7 --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" -o tsv)
         echo "VM_IP=${IP_ADDRESS}"
         echo "VM_IP=${IP_ADDRESS}" >> $GITHUB_ENV
 
     - name: Get VM FQDN (DNS Name)
       id: get-vm-dns
       run: |
-        VM_DNS=$(az vm show --resource-group azweb-resources --name vm_20_7 --query "osProfile.computerName" -o tsv)
+        VM_DNS=$(az vm show --resource-group azweb-resources --name vm-20-7 --query "osProfile.computerName" -o tsv)
         echo "VM_DNS=${VM_DNS}"
         echo "VM_DNS=${VM_DNS}" >> $GITHUB_ENV
 
