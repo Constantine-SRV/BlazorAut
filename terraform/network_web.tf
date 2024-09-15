@@ -76,3 +76,13 @@ resource "azurerm_public_ip" "vm_20_7" {
   allocation_method   = "Dynamic"
   domain_name_label   = "webaz07"
 }
+
+resource "azurerm_subnet_network_security_group_association" "subnet_nsg_association_10_0" {
+  subnet_id                 = azurerm_subnet.subnet_10_0.id
+  network_security_group_id = azurerm_network_security_group.nsg.id
+}
+
+resource "azurerm_subnet_network_security_group_association" "subnet_nsg_association_20_0" {
+  subnet_id                 = azurerm_subnet.subnet_20_0.id
+  network_security_group_id = azurerm_network_security_group.nsg.id
+}
