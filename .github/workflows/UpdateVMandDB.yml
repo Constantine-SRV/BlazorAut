@@ -1,0 +1,60 @@
+name: Update VM and Restore Database
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update-vm:
+    runs-on: ubuntu-latest
+
+    env:
+      ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+      DB_PASS: ${{ secrets.TF_VAR_DB_PASSWORD }}
+      ACC_KEY: ${{ secrets.ARM_ACCESS_KEY }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Install Azure CLI
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y azure-cli
+
+    - name: Login to Azure
+      run: |
+        az login --service-principal -u ${{ secrets.ARM_CLIENT_ID }} -p ${{ secrets.ARM_CLIENT_SECRET }} --tenant ${{ secrets.ARM_TENANT_ID }}
+
+    - name: Get VM Public IP
+      id: get-vm-ip
+      run: |
+        IP_ADDRESS=$(az vm list-ip-addresses --resource-group rg-azweb --name vm_20_7 --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" -o tsv)
+        echo "VM_IP=${IP_ADDRESS}" >> $GITHUB_ENV
+
+    - name: Install SSH client
+      run: sudo apt-get update && sudo apt-get install -y openssh-client
+
+    - name: Connect to VM and update instance
+      run: |
+        ssh -o StrictHostKeyChecking=no -i ${{ secrets.SSH_PRIVATE_KEY }} user@${{ env.VM_IP }} << EOF
+          # Переносим скрипты на сервер
+          sudo mv /tmp/setup_instance.sh /usr/local/bin/setup_instance.sh
+          sudo chmod +x /usr/local/bin/setup_instance.sh
+          sudo mv /tmp/restore_pg_dump.sh /usr/local/bin/restore_pg_dump.sh
+          sudo chmod +x /usr/local/bin/restore_pg_dump.sh
+
+          # Экспортируем переменные окружения
+          export PFX_FILE_NAME='webaws_pam4_com.pfx'
+          export APP_NAME='BlazorAut'
+          export DB_USER='dbuser'
+          export DB_PASS=${DB_PASS}
+          export DB_NAME='dbwebaws'
+          export ACC_KEY=${ACC_KEY}
+
+          # Выполняем скрипты
+          sudo -E /usr/local/bin/restore_pg_dump.sh
+          sudo -E /usr/local/bin/setup_instance.sh
+        EOF
