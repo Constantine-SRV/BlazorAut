@@ -1,0 +1,214 @@
+﻿@page "/user-roles"
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Navigation
+@inject DialogService DialogService
+@inject GetUserRolesService GetUserRolesService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@using Microsoft.EntityFrameworkCore
+
+<PageTitle>Edit User Roles</PageTitle>
+
+<h3>Edit User Roles</h3>
+
+@if (isGuest)
+{
+    <p>Sorry, this page is only accessible to users with 'User' or 'Admin' roles.</p>
+}
+else
+{
+    <!-- Фильтрация по ролям -->
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Start" Gap="0.5rem" class="rz-p-sm-12">
+        <RadzenLabel Text="Select Roles" Component="DropDownMultipleChips" />
+        <RadzenDropDown @bind-Value=@selectedRoles Data=@roles TextProperty="RoleName" ValueProperty="Id"
+                        Multiple=true AllowClear=true Placeholder="Select roles" Chips=true Style="width: 300px;" />
+        <RadzenButton Text="Search" Click="SearchByRoles" />
+        <RadzenButton Text="Show All" Click="ShowAllUsers" Style="margin-left: 10px;" />
+    </RadzenStack>
+
+    <!-- Шапка для управления развертыванием всех строк -->
+    <RadzenCard Variant="Variant.Outlined">
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1.5rem" Wrap="FlexWrap.Wrap">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                <div>ExpandMode:</div>
+                <RadzenSelectBar @bind-Value="@expandMode" TextProperty="Text" ValueProperty="Value"
+                                 Data="@(Enum.GetValues(typeof(DataGridExpandMode)).Cast<DataGridExpandMode>().Select(t => new { Text = $"{t}", Value = t }))" Size="ButtonSize.Small" />
+            </RadzenStack>
+            <RadzenButton Text="Expand all rows" Click="@(args => ToggleRowsExpand(true))" Disabled="@((allRowsExpanded == true || expandMode == DataGridExpandMode.Single))" />
+            <RadzenButton Text="Collapse all rows" Click="@(args => ToggleRowsExpand(false))" Disabled="@((allRowsExpanded == false || expandMode == DataGridExpandMode.Single))" />
+        </RadzenStack>
+    </RadzenCard>
+
+    <!-- Основной DataGrid для управления ролями пользователей -->
+    <RadzenDataGrid @ref="usersGrid" Data="@users" TItem="User" AllowFiltering="true" AllowPaging="true" AllowSorting="true" ExpandMode="@expandMode">
+        <Columns>
+            <RadzenDataGridColumn TItem="User" Property="Email" Title="Email" />
+            <RadzenDataGridColumn TItem="User">
+                <Template Context="user">
+                    <RadzenButton Icon="edit" Text="Edit Roles" Click="@(args => ExpandRow(user))" Disabled="@(!isAdmin)" />
+                    <RadzenButton Icon="history" Text="Show History" Click="@(args => ShowHistory(user.Email))" Style="margin-left: 10px;" />
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+        <Template Context="user">
+            <RadzenCard Variant="Variant.Text" class="rz-m-4">
+                <RadzenTabs>
+                    <Tabs>
+                        <RadzenTabsItem Text="User Roles">
+                            @if (isAdmin)
+                            {
+                                <RadzenButton Icon="add" Text="Add Role" Click="@(args => AddRole(user))" Style="margin-left: 10px;" />
+                            }
+                            <RadzenDataGrid TItem="UserRole" Data="@user.UserRoles" AllowInlineEdit="true" AllowPaging="true" AllowSorting="true">
+                                <Columns>
+                                    <RadzenDataGridColumn TItem="UserRole" Property="Role.RoleName" Title="Role Name" />
+                                    <RadzenDataGridColumn TItem="UserRole">
+                                        <Template Context="userRole">
+                                            @if (isAdmin)
+                                            {
+                                                <RadzenButton Icon="delete" Text="Delete Role" Click="@(args => DeleteUserRole(userRole,user))" />
+                                            }
+                                        </Template>
+                                    </RadzenDataGridColumn>
+                                </Columns>
+                            </RadzenDataGrid>
+                        </RadzenTabsItem>
+                    </Tabs>
+                </RadzenTabs>
+            </RadzenCard>
+        </Template>
+    </RadzenDataGrid>
+}
+
+@code {
+    private RadzenDataGrid<User> usersGrid;
+    private List<User> users;
+    private List<Role> roles;
+    private IList<int> selectedRoles = new List<int>();
+    DataGridExpandMode expandMode = DataGridExpandMode.Single;
+    bool? allRowsExpanded;
+    private List<string> userRoles;
+    private bool isAdmin = false;
+    private bool isGuest = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var email = authenticationState.User.Identity.Name;
+        userRoles = await GetUserRolesService.GetUserRolesByEmail(email);
+
+        // Проверка на наличие роли Admin
+        isAdmin = userRoles.Contains("Admin");
+
+        // Проверка на роль Guest
+        isGuest = userRoles.Contains("Guest");
+
+        if (!isGuest)
+        {
+            users = await DbContext.Users
+                .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                .ToListAsync();
+
+            roles = await DbContext.Roles.ToListAsync();
+        }
+    }
+
+    private void ExpandRow(User user)
+    {
+        usersGrid.ExpandRow(user);
+    }
+
+    private async Task AddRole(User user)
+    {
+        var availableRoles = roles.Where(r => !user.UserRoles.Any(ur => ur.RoleId == r.Id)).ToList();
+
+        if (availableRoles.Count == 0)
+        {
+            return;
+        }
+
+        var result = await DialogService.OpenAsync<SelectRoleDialog>("Select Role", new Dictionary<string, object>
+        {
+            { "AvailableRoles", availableRoles }
+        });
+
+        if (result != null)
+        {
+            var selectedRoleId = (int)result;
+            var role = await DbContext.Roles.FindAsync(selectedRoleId);
+            if (role != null)
+            {
+                var userRole = new UserRole { UserId = user.Id, RoleId = selectedRoleId, Role = role };
+                DbContext.UserRoles.Add(userRole);
+                await DbContext.SaveChangesAsync();
+
+                // Обновляем список ролей для конкретного пользователя
+                user.UserRoles = await DbContext.UserRoles
+                    .Where(ur => ur.UserId == user.Id)
+                    .Include(ur => ur.Role)
+                    .ToListAsync();
+
+                await usersGrid.Reload();
+                StateHasChanged(); // Перерисовываем компонент
+            }
+        }
+    }
+
+    private async Task DeleteUserRole(UserRole userRole, User user)
+    {
+        DbContext.UserRoles.Remove(userRole);
+        await DbContext.SaveChangesAsync();
+
+        // Обновляем список ролей для конкретного пользователя после удаления
+        user.UserRoles = await DbContext.UserRoles
+            .Where(ur => ur.UserId == user.Id)
+            .Include(ur => ur.Role)
+            .ToListAsync();
+
+        await usersGrid.Reload();
+        StateHasChanged(); // Перерисовываем компонент
+    }
+
+    private async Task ToggleRowsExpand(bool? value)
+    {
+        allRowsExpanded = value;
+
+        if (value == true)
+        {
+            await usersGrid.ExpandRows(usersGrid.PagedView);
+        }
+        else if (value == false)
+        {
+            await usersGrid.CollapseRows(usersGrid.PagedView);
+        }
+    }
+
+    private async Task SearchByRoles()
+    {
+        if (selectedRoles != null && selectedRoles.Any())
+        {
+            // Фильтрация пользователей по выбранным ролям
+            users = await DbContext.Users
+                .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                .Where(u => u.UserRoles.Any(ur => selectedRoles.Contains(ur.RoleId)))
+                .ToListAsync();
+            await usersGrid.Reload();
+        }
+    }
+
+    private async Task ShowAllUsers()
+    {
+        // Показать всех пользователей без фильтрации
+        users = await DbContext.Users
+            .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+            .ToListAsync();
+        await usersGrid.Reload();
+    }
+    private void ShowHistory(string email)
+    {
+        // Переход на страницу логов, передаем email пользователя как параметр
+        Navigation.NavigateTo($"/logins-history/{email}");
+    }
+}

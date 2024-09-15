@@ -1,6 +1,5 @@
 ﻿using BlazorAut.Data;
-using Blazored.LocalStorage;
-using Blazored.SessionStorage;
+
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +12,7 @@ using System.Text;
 
 public class CustomAuthenticationStateProvider : AuthenticationStateProvider
 {
-     private readonly ApplicationDbContext _context;
+    private readonly ApplicationDbContext _context;
     private readonly string _secretKey;
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly IHttpContextAccessor _httpContextAccessor;
@@ -43,8 +42,15 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
             var scopedContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             var identity = new ClaimsIdentity();
             // var token = await scopedContext.UserTokens.OrderByDescending(t => t.CreatedAt).FirstOrDefaultAsync();
-            var tokenFromCookies = _httpContextAccessor.HttpContext.Request.Cookies.TryGetValue("Kticket000", out var cookieValue) ?  cookieValue : null;
-
+            String? tokenFromCookies = null;
+            try //rewrite govnocode
+            {
+                if (_httpContextAccessor?.HttpContext?.Request?.Cookies != null)
+                {
+                    _httpContextAccessor.HttpContext.Request.Cookies.TryGetValue("OrcketC2024", out tokenFromCookies);
+                }
+            }
+            catch (Exception ex) { Console.WriteLine($" error in GetAuthenticationStateAsync {ex.Message}"); }
 
             if (!string.IsNullOrEmpty(tokenFromCookies))
             {
@@ -127,7 +133,7 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
         else
         {
             tokenString=userToken.Token;
-           // userToken.Token = tokenString;
+            // userToken.Token = tokenString;
             userToken.Expiration = tokenDescriptor.Expires.Value;
             userToken.CreatedAt = DateTime.UtcNow;
 
@@ -136,7 +142,7 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
 
         await _context.SaveChangesAsync();
 
-        
+
         var cookieOptions = new CookieOptions
         {
             HttpOnly = true,
@@ -145,20 +151,17 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
             SameSite = SameSiteMode.Strict
         };
         //var dotNetHelper = DotNetObjectReference.Create(this);
-        await _jsRuntime.InvokeVoidAsync("setCookie", "Kticket000", tokenString, _tokenExpirationDays, _dotNetRef);
-        // _httpContextAccessor.HttpContext.Response.Cookies.Append("Kticket000", tokenString, cookieOptions);
+        await _jsRuntime.InvokeVoidAsync("setCookie", "OrcketC2024", tokenString, _tokenExpirationDays, _dotNetRef);
 
-
-        //NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
     }
 
     [JSInvokable]
     public async Task RefreshAuthenticationState()
     {
         NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
-      
+
     }
-    public async Task LogoutAsync()
+    public async Task LogoutAsync() //logut from all devices( delete from DB)
     {
         var token = await _context.UserTokens.OrderByDescending(t => t.CreatedAt).FirstOrDefaultAsync();
         if (token != null)
@@ -175,14 +178,13 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
     public async Task LogoutThisDeviceAsync()
     {
         // delete from this device
-        await _jsRuntime.InvokeVoidAsync("deleteCookie", "Kticket000", _dotNetRef);
+        await _jsRuntime.InvokeVoidAsync("deleteCookie", "OrcketC2024", _dotNetRef);
 
         // refresh
         var identity = new ClaimsIdentity();
         var user = new ClaimsPrincipal(identity);
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
     }
-
 
 
 

@@ -13,6 +13,7 @@ using Blazored.LocalStorage;
 using Microsoft.Extensions.Configuration;
 using System.Runtime.InteropServices;
 using Microsoft.JSInterop;
+using Radzen;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -114,6 +115,8 @@ builder.Services.AddScoped<DbServerInfoService>();
 builder.Services.AddTransient<IEmailSender, GraphEmailSender>();
 builder.Services.AddTransient<DbBackupService>();
 builder.Services.AddSingleton<ViewOptionService>(); //hide menue service
+builder.Services.AddScoped<GetUserRolesService>(); //user roles
+builder.Services.AddRadzenComponents(); //Radzen components
 
 var app = builder.Build();
 

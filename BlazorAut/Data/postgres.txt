@@ -1,0 +1,66 @@
+﻿# Шаг 1: Резервное копирование
+pg_dump -U postgres -Fc dbwebaws -f dbwebaws_backup.dump
+
+# Шаг 2: Создание новой базы данных
+createdb -U postgres dbwebwd
+
+# Шаг 3: Восстановление данных
+pg_restore -U postgres -d dbwebwd dbwebaws_backup.dump
+ pg_restore -U postgres --clean --if-exists -d dbwebwd dbwebaws_backup.dump
+
+
+
+# Шаг 1: Подключение к базе данных
+psql -U postgres -d dbwebwd
+
+# Шаги 2 и 3: Создание пользователя и предоставление прав
+CREATE USER wdwebuser WITH PASSWORD 'ваш_пароль';
+GRANT CONNECT ON DATABASE dbwebwd TO wdwebuser;
+GRANT USAGE ON SCHEMA public TO wdwebuser;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO wdwebuser;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO wdwebuser;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO wdwebuser;  
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO wdwebuser;
+
+# Шаг 4: Выход из psql
+\q
+
+# без удаления
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO wdwebuser;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE ON TABLES TO wdwebuser;
+
+pg_restore -U postgres -f dbwebaws_backup.sql --verbose --no-owner --schema-only dbwebaws_backup.dump
+pg_restore -U postgres -f dbwebaws_backup.sql --verbose --no-owner dbwebaws_backup.dump
+
+
+UPDATE public."AppSettings"
+SET "Value" = 'smtp.gmail.com'
+WHERE "Key" = 'SmtpServer';
+
+UPDATE public."AppSettings"
+SET "Value" = '587'
+WHERE "Key" = 'SmtpPort';
+
+UPDATE public."AppSettings"
+SET "Value" = 'sd4vkiugDsrlvvfvoieF3gigdfdjijgr'
+WHERE "Key" = 'JwtSecretKey';
+
+UPDATE public."AppSettings"
+SET "Value" = 'BlazorEmailLogin'
+WHERE "Key" = 'JwtIssuer';
+
+UPDATE public."AppSettings"
+SET "Value" = 'BlazorEmailLoginUsers'
+WHERE "Key" = 'JwtAudience';
+
+UPDATE public."AppSettings"
+SET "Value" = '14'
+WHERE "Key" = 'TokenExpirationDays';
+
+UPDATE public."AppSettings"
+SET "Value" = 'user@server.local'
+WHERE "Key" = 'SmtpUser';
+
+UPDATE public."AppSettings"
+SET "Value" = 'pass for smtp'
+WHERE "Key" = 'SmtpPass';

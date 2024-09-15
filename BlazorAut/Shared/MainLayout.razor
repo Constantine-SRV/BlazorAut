@@ -3,6 +3,7 @@
 @inject NavigationManager Navigation
 @using BlazorAut.Services
 @inject ViewOptionService ViewOption
+<RadzenComponents />
 
 <PageTitle>BlazorAut</PageTitle>
 
@@ -23,7 +24,7 @@
 
                     <p>
                         Addres: @Navigation.Uri User: @(authenticationState?.User?.Identity?.Name ?? "Anonymous")
-                        <a href="javascript:void(0)" @onclick="Logout">Logout</a> |
+                        <a href="javascript:void(0)" @onclick="LogouThisDevice">Logout</a> |
                         <a href="javascript:void(0)" @onclick="LogoutAll">Logout All</a>
                     </p>
 
@@ -62,7 +63,7 @@
         Console.WriteLine($"Parameters set - user: {(authenticationState?.User?.Identity?.Name ?? "Anonymous")}");
     }
 
-    private async Task Logout()
+    private async Task LogouThisDevice()
     {
         if (AuthenticationStateProvider is CustomAuthenticationStateProvider customAuthProvider)
         {

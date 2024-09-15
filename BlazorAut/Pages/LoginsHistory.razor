@@ -1,0 +1,139 @@
+﻿@page "/logins-history"
+@page "/logins-history/{email?}" // Параметр email необязательный
+@using Microsoft.EntityFrameworkCore
+@using BlazorAut.Data
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ApplicationDbContext DbContext
+@inject GetUserRolesService GetUserRolesService
+
+<h3>Login History</h3>
+@if (isAdmin && string.IsNullOrEmpty(email))
+{
+    <label>All records</label>
+}
+else if (isAdmin && !string.IsNullOrEmpty(email))
+{
+    <label>Filtered by: @email</label>
+}
+else
+{
+    <label>Filtered by: (@userEmail)</label>
+}
+<div class="row mb-3">
+    <div class="col-md-6">
+       
+        <label> Enter PIN to show full data:</label>
+        <RadzenTextBox @bind-Value="enteredPin" Placeholder="Enter PIN" />
+        <RadzenButton Click="@(args => ShowAllData())" Text="Show All Data" Icon="lock_open" />
+    </div>
+</div>
+
+<RadzenDataGrid @ref="loginsGrid" Data="@filteredAuthCodeHistoryData" TItem="AuthCodeHistory" AllowPaging="true" AllowSorting="true">
+    <Columns>
+        <RadzenDataGridColumn TItem="AuthCodeHistory" Property="Email" Title="Email" />
+        <RadzenDataGridColumn TItem="AuthCodeHistory" Property="ClientIp" Title="Client IP" />
+        <RadzenDataGridColumn TItem="AuthCodeHistory" Property="RequestedAt" Title="Requested At" FormatString="{0:yyyy-MM-dd HH:mm:ss}" />
+        <RadzenDataGridColumn TItem="AuthCodeHistory" Property="AuthorizedAt" Title="Authorized At" FormatString="{0:yyyy-MM-dd HH:mm:ss}" />
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    private RadzenDataGrid<AuthCodeHistory> loginsGrid;
+    private List<AuthCodeHistory> authCodeHistoryData = new();
+    private List<AuthCodeHistory> filteredAuthCodeHistoryData = new();
+    private string enteredPin = "";
+    private string correctPin = "";
+    private string userEmail;
+    private List<string> userRoles = new();
+    private bool isAdmin = false;
+
+    [Parameter] public string? email { get; set; }  // Параметр email необязательный
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userEmail = authState.User.Identity?.Name;
+        userRoles = await GetUserRolesService.GetUserRolesByEmail(userEmail);
+
+        // Check if the user is an admin
+        isAdmin = userRoles.Contains("Admin");
+
+        // Load the data based on the user's role
+        if (isAdmin)
+        {
+            // Admins see all history or filtered by email if provided
+            if (!string.IsNullOrEmpty(email))
+            {
+                authCodeHistoryData = await DbContext.AuthCodeHistories
+                    .Where(h => h.Email == email)
+                    .ToListAsync();
+            }
+            else
+            {
+                authCodeHistoryData = await DbContext.AuthCodeHistories.ToListAsync();
+            }
+        }
+        else
+        {
+            // Regular users only see their own history
+            authCodeHistoryData = await DbContext.AuthCodeHistories
+                .Where(h => h.Email == userEmail)
+                .ToListAsync();
+        }
+
+        // By default, obfuscate IPs and emails
+        filteredAuthCodeHistoryData = ObfuscateData(authCodeHistoryData);
+
+        // Get the correct PIN from the database
+        var pinCode = await DbContext.PinCodes.SingleOrDefaultAsync(p => p.PinName == "OpenLoginHistory");
+        if (pinCode != null)
+        {
+            correctPin = pinCode.Pin;
+        }
+
+    }
+
+    private async Task ShowAllData()
+    {
+        if (enteredPin == correctPin)
+        {
+            // Show full data if the correct PIN is entered
+            filteredAuthCodeHistoryData = authCodeHistoryData;
+        }
+        else
+        {
+            // Obfuscate the data if the PIN is incorrect or not provided
+            filteredAuthCodeHistoryData = ObfuscateData(authCodeHistoryData);
+        }
+        await loginsGrid.Reload();
+        StateHasChanged(); // Force the grid to re-render
+    }
+
+    private List<AuthCodeHistory> ObfuscateData(List<AuthCodeHistory> data)
+    {
+        return data.Select(authCode => new AuthCodeHistory
+            {
+                Email = ObfuscateEmail(authCode.Email),
+                Code = authCode.Code,
+                ClientIp = "hidden",
+                RequestedAt = authCode.RequestedAt,
+                AuthorizedAt = authCode.AuthorizedAt
+            }).ToList();
+    }
+
+    private string ObfuscateEmail(string email)
+    {
+        var parts = email.Split('@');
+        if (parts.Length == 2)
+        {
+            var namePart = parts[0];
+            var domainPart = parts[1];
+            var domainParts = domainPart.Split('.');
+            if (domainParts.Length > 1)
+            {
+                return $"{namePart[..Math.Min(2, namePart.Length)]}***@{domainParts[0][..Math.Min(2, domainParts[0].Length)]}***.{domainParts[^1]}";
+            }
+        }
+        return "hidden";
+    }
+}

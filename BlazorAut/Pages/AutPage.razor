@@ -6,6 +6,9 @@
 @inject NavigationManager NavigationManager
 @inject IEmailSender emailSender
 @inject NavigationManager Navigation
+@inject NavigationManager Navigation
+@inject GetUserRolesService GetUserRolesService
+@inject IHttpContextAccessor HttpContextAccessor
 @using System.ComponentModel.DataAnnotations
 @using BlazorAut.Services
 @using BlazorAut.Data
@@ -24,8 +27,26 @@
 
 @if (authenticationState?.User?.Identity?.IsAuthenticated ?? false)
 {
+    <h5>User Roles:</h5>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Role Name</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var role in userRoles)
+            {
+                <tr>
+                    <td>@role</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
     <button @onclick="LogoutAllDevices" class="btn btn-primary">Logoff All Devices</button>
     <button @onclick="LogouThisDevice" class="btn btn-primary">Logoff only this browser</button>
+
 }
 else
 {
@@ -40,7 +61,7 @@ else
                 <InputText @bind-Value="emailModel.Email" class="form-control" />
             </div>
             <button type="submit" class="btn btn-primary">Request Code</button>
-          
+
         </EditForm>
     }
     else
@@ -55,7 +76,7 @@ else
             </div>
             <button type="submit" class="btn btn-primary">Verify Code</button>
             <div class="alert alert-info mt-2">
-                email service is working, code 000000 can be used 
+                email service is working, code 000000 can be used
                 (authCode.Code == codeModel.Code || codeModel.Code=="000000")
 
             </div>
@@ -78,7 +99,9 @@ else
     private bool isCodeVerified = false;
     private string authenticatedEmail;
     private AuthenticationState authenticationState;
-
+    private List<string> userRoles = new List<string>();
+    private string? clientIp;
+    private int? authCodeHistoryId;
     public class EmailModel
     {
         [Required]
@@ -97,6 +120,21 @@ else
         authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         Console.WriteLine($"User Identity: {authenticationState.User.Identity.Name}");
         Console.WriteLine($"Is Authenticated: {authenticationState.User.Identity.IsAuthenticated}");
+        if (authenticationState.User.Identity.IsAuthenticated)
+        {
+            var email = authenticationState.User.Identity.Name;
+            userRoles = await GetUserRolesService.GetUserRolesByEmail(email);
+        }
+        var httpContext = HttpContextAccessor.HttpContext;
+        if (httpContext != null)
+        {
+            clientIp = httpContext.Items["ClientIp"] as string ?? "IP not available";
+        }
+        else
+        {
+            clientIp = "HttpContext Error";
+        }
+
     }
 
     private async Task HandleRequestCode()
@@ -104,7 +142,7 @@ else
         var code = GenerateCode();
         var expiration = DateTime.UtcNow.AddMinutes(15); // Set expiration time
 
-        // Save the code to the database
+        // Save the code to the main AuthCode table
         var authCode = new AuthCode
             {
                 Email = emailModel.Email,
@@ -112,16 +150,32 @@ else
                 Expiration = expiration
             };
 
+        // Remove any existing code for the same email
         var existingAuthCode = await DbContext.AuthCodes.FindAsync(emailModel.Email);
         if (existingAuthCode != null)
         {
             DbContext.AuthCodes.Remove(existingAuthCode);
         }
 
+        // Add the new code
         DbContext.AuthCodes.Add(authCode);
-        await DbContext.SaveChangesAsync();
 
-        //await EmailService.SendEmailAsync(emailModel.Email, "Your Code", $"Your code is: {code}");
+        // Also store this in AuthCodeHistory
+        var authCodeHistory = new AuthCodeHistory
+            {
+                Email = emailModel.Email,
+                Code = "0",
+                ClientIp = clientIp, // Client's IP address
+                RequestedAt = DateTime.UtcNow // Request time
+            };
+
+        DbContext.AuthCodeHistories.Add(authCodeHistory); // Add history record
+        await DbContext.SaveChangesAsync();
+        // Store the inserted record's Id for future use
+        authCodeHistoryId = authCodeHistory.Id;
+        Console.WriteLine($"authCodeHistory is {authCodeHistoryId.ToString()}");
+
+        // Send the code via email
         await emailSender.SendEmailAsync(emailModel.Email, "Your Code", $"Your code is: {code}");
         isCodeSent = true;
         Console.WriteLine($"Code sent to {emailModel.Email}: {code}");
@@ -130,17 +184,39 @@ else
         StateHasChanged();
     }
 
+
+
     private async Task HandleVerifyCode()
     {
+        // Find the auth code for the email
         var authCode = await DbContext.AuthCodes.SingleOrDefaultAsync(ac => ac.Email == emailModel.Email);
-        if (authCode != null && (authCode.Code == codeModel.Code || codeModel.Code=="000000") && authCode.Expiration > DateTime.UtcNow) //!!!- remove 000000 from prod
+
+        // Check if the code is correct and not expired
+        if (authCode != null && (authCode.Code == codeModel.Code || codeModel.Code == "000000") && authCode.Expiration > DateTime.UtcNow)
         {
             Console.WriteLine("Code verified successfully");
+
+            // Mark the user as authenticated
             await ((CustomAuthenticationStateProvider)AuthenticationStateProvider).MarkUserAsAuthenticated(emailModel.Email);
+
+            // If authCodeHistoryId is available, update the corresponding history record
+            if (authCodeHistoryId.HasValue)
+            {
+                var authCodeHistory = await DbContext.AuthCodeHistories.FindAsync(authCodeHistoryId.Value);
+                if (authCodeHistory != null)
+                {
+                    authCodeHistory.Code = authCode.Code;
+                    authCodeHistory.AuthorizedAt = DateTime.UtcNow;
+                    await DbContext.SaveChangesAsync();
+                }
+            }
+
             authenticatedEmail = emailModel.Email;
             isCodeVerified = true;
             authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-            StateHasChanged(); // Force a re-render to update the UI
+
+            // Force a re-render to update the UI
+            StateHasChanged();
             NavigationManager.NavigateTo("/", forceLoad: true);
         }
         else
@@ -148,6 +224,8 @@ else
             Console.WriteLine("Invalid or expired code");
         }
     }
+
+
 
     private async Task LogoutAllDevices()
     {
@@ -172,7 +250,7 @@ else
     private string GenerateCode()
     {
         var random = new Random();
-         return random.Next(100000, 999999).ToString();
+        return random.Next(100000, 999999).ToString();
         //return "000000";
     }
 }

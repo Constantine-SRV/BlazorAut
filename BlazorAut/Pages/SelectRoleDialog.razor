@@ -1,0 +1,26 @@
+﻿@code {
+    [Parameter] public List<Role> AvailableRoles { get; set; }
+    [Inject] DialogService DialogService { get; set; }
+
+    private int selectedRoleId;
+
+    private void OnRoleSelected(ChangeEventArgs e)
+    {
+        selectedRoleId = int.Parse(e.Value.ToString());
+    }
+
+    private void Submit()
+    {
+        DialogService.Close(selectedRoleId);
+    }
+
+    private void Cancel()
+    {
+        DialogService.Close(null);
+    }
+}
+
+<h3>Select Role</h3>
+<RadzenDropDown TValue="int" Data="@AvailableRoles" TextProperty="RoleName" ValueProperty="Id" @bind-Value="selectedRoleId" />
+<RadzenButton Text="Submit" Click="@Submit" Disabled="@(selectedRoleId == 0)" />
+<RadzenButton Text="Cancel" Click="@Cancel" />
