@@ -1,6 +1,8 @@
 ﻿using BlazorAut.Data;
 using BlazorAut.Services;
+using BlazorAut.Middleware; // Adding namespace for Middleware
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
 using Blazored.SessionStorage;
 using Microsoft.AspNetCore.Components;
@@ -14,9 +16,9 @@ using Microsoft.Extensions.Configuration;
 using System.Runtime.InteropServices;
 using Microsoft.JSInterop;
 using Radzen;
+using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
-
 
 string pfxFilePath = "";
 //github
@@ -29,8 +31,7 @@ else
     pfxFilePath = "/etc/ssl/certs/webaws_pam4_com.pfx";
 }
 
-
-//  Kestrel for HTTPS
+// Kestrel for HTTPS
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
     serverOptions.ListenAnyIP(80);
@@ -40,19 +41,14 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
     });
 });
 
-
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
-//builder.Services.AddSingleton<WeatherForecastService>();
 builder.Services.AddBlazoredLocalStorage();
 
 // Add DbContext configuration
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-
-
 
 // Add AppSettingsService
 builder.Services.AddScoped<AppSettingsService>();
@@ -88,13 +84,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-
-
 builder.Services.AddScoped<JwtService>(provider => new JwtService(secretKey, issuer, audience));
 builder.Services.AddScoped<IEmailService>(provider => new EmailService(smtpServer, smtpPort, smtpUser, smtpPass));
-
-
-//builder.Services.AddScoped<AuthenticationStateProvider>(provider => new CustomAuthenticationStateProvider(provider.GetRequiredService<ApplicationDbContext>(), secretKey));
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AuthenticationStateProvider>(provider =>
@@ -106,25 +97,39 @@ builder.Services.AddScoped<AuthenticationStateProvider>(provider =>
     return new CustomAuthenticationStateProvider(serviceScopeFactory, context, httpContextAccessor, jsRuntime, secretKey, tokenExpirationDays);
 });
 
-
-
 builder.Services.AddAuthorizationCore();
-builder.Services.AddHttpContextAccessor();
-builder.Services.AddBlazoredSessionStorage(); //
+builder.Services.AddBlazoredSessionStorage();
 builder.Services.AddScoped<DbServerInfoService>();
 builder.Services.AddTransient<IEmailSender, GraphEmailSender>();
 builder.Services.AddTransient<DbBackupService>();
-builder.Services.AddSingleton<ViewOptionService>(); //hide menue service
-builder.Services.AddScoped<GetUserRolesService>(); //user roles
-builder.Services.AddRadzenComponents(); //Radzen components
+builder.Services.AddSingleton<ViewOptionService>(); // Hide menu service
+builder.Services.AddScoped<GetUserRolesService>(); // User roles
+builder.Services.AddRadzenComponents();
+
+// Add authorization policy for proxy
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("ProxyOnly", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        // Optionally, add more requirements, e.g., roles
+        // policy.RequireRole("Admin");
+    });
+});
+
+// Configure CORS if needed
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", builder =>
+    {
+        builder
+            .AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader();
+    });
+});
 
 var app = builder.Build();
-
-//app.MapGet("/", async (IEmailSender emailSender) =>
-//{
-//    await emailSender.SendEmailAsync("leshkov@servilon.com", "Test Subject", "Test Message");
-//    return "Email sent successfully";
-//});
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -135,9 +140,14 @@ if (!app.Environment.IsDevelopment())
 app.UseMiddleware<ClientInfoMiddleware>();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Adding custom middleware for proxying
+app.UseProxyService();
+
+// Map Blazor Hub and fallback
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
 

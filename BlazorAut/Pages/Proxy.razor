@@ -1,0 +1,63 @@
+﻿@page "/proxy-page"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+
+
+<div class="input-group mb-3">
+    <input @bind="url" type="text" class="form-control" placeholder="Введите URL (например, https://www.google.com)" />
+    <button class="btn btn-primary" @onclick="LoadPage">Go</button>
+</div>
+
+@if (!string.IsNullOrEmpty(proxyUrl))
+
+{
+    <iframe src="@proxyUrl" style="width:100%; height:800px;" frameborder="0"></iframe>
+}
+
+@code {
+    private string url;
+
+    private string proxyUrl;
+
+
+
+    private void LoadPage()
+
+    {
+
+        if (!string.IsNullOrEmpty(url))
+
+        {
+
+       
+
+            if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+
+                !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+
+            {
+
+                url = "https://" + url;
+
+            }
+
+
+
+           
+
+            var encodedUrl = Uri.EscapeDataString(url);
+
+
+
+           
+
+            proxyUrl = $"/proxy-service?url={encodedUrl}";
+
+
+
+            Console.WriteLine($"Loading proxy URL: {proxyUrl}");
+
+        }
+
+    }
+}
