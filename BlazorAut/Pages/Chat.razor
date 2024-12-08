@@ -4,12 +4,14 @@
 @inject IChatService ChatService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject GetUserRolesService GetUserRolesService
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>Chat with GPT</PageTitle>
 
 <h3>Chat with GPT</h3>
 
 @if (isAdmin)
 {
-   
     <div class="mb-3 row g-2 align-items-center">
         <div class="col-auto">
             <select @bind="selectedModel" class="form-select">
@@ -27,12 +29,10 @@
         </div>
     </div>
 
- 
     <div class="mb-3">
         <textarea @bind="userMessage" rows="4" class="form-control" placeholder="Enter your message..."></textarea>
     </div>
 
-   
     <div>
         <h4>Response:</h4>
         @if (!string.IsNullOrEmpty(gptResponse))
@@ -116,15 +116,17 @@ else
     {
         var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
         var html = Markdown.ToHtml(markdown, pipeline);
-        // Add unique IDs to each code block and append copy button
+
+        // Add unique IDs to each code block and append "Copy Code" button
         int codeBlockIndex = 0;
         html = System.Text.RegularExpressions.Regex.Replace(html, "<pre><code>(.*?)</code></pre>", match =>
         {
             codeBlockIndex++;
             var codeId = $"codeBlock{codeBlockIndex}";
             return $"<pre><code id=\"{codeId}\">{System.Net.WebUtility.HtmlEncode(match.Groups[1].Value)}</code></pre>" +
-                   $"<button class=\"btn btn-sm btn-secondary mt-2\" onclick=\"copyCode('{codeId}')\">Copy Code</button>";
+                   $"<button class=\"copy-button\" onclick=\"copyCode('{codeId}')\">Copy Code</button>";
         }, System.Text.RegularExpressions.RegexOptions.Singleline);
+
         return html;
     }
 
