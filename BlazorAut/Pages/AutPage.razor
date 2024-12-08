@@ -76,8 +76,7 @@ else
             </div>
             <button type="submit" class="btn btn-primary">Verify Code</button>
             <div class="alert alert-info mt-2">
-                email service is working, code 000000 can be used
-                (authCode.Code == codeModel.Code || codeModel.Code=="000000")
+                
 
             </div>
         </EditForm>
@@ -192,7 +191,7 @@ else
         var authCode = await DbContext.AuthCodes.SingleOrDefaultAsync(ac => ac.Email == emailModel.Email);
 
         // Check if the code is correct and not expired
-        if (authCode != null && (authCode.Code == codeModel.Code || codeModel.Code == "000000") && authCode.Expiration > DateTime.UtcNow)
+        if (authCode != null && (authCode.Code == codeModel.Code) && authCode.Expiration > DateTime.UtcNow)
         {
             Console.WriteLine("Code verified successfully");
 
