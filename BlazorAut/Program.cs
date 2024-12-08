@@ -63,6 +63,7 @@ var appSettingsService = serviceProvider.GetRequiredService<AppSettingsService>(
 var appSettings = appSettingsService.GetAppSettingsAsync().Result;
 
 var secretKey = appSettings["JwtSecretKey"];
+var gptKey = appSettings["GptKey"];
 var issuer = appSettings["JwtIssuer"];
 var audience = appSettings["JwtAudience"];
 var smtpServer = appSettings["SmtpServer"];
@@ -71,6 +72,8 @@ var smtpUser = appSettings["SmtpUser"];
 var smtpPass = appSettings["SmtpPass"];
 var key = Encoding.UTF8.GetBytes(secretKey);
 var tokenExpirationDays = int.Parse(appSettings["TokenExpirationDays"]);
+
+builder.Services.AddHttpClient();
 
 // Configure JWT
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -106,6 +109,10 @@ builder.Services.AddScoped<AuthenticationStateProvider>(provider =>
     return new CustomAuthenticationStateProvider(serviceScopeFactory, context, httpContextAccessor, jsRuntime, secretKey, tokenExpirationDays);
 });
 
+builder.Services.AddScoped<IChatService>(provider => new ChatService(
+    provider.GetRequiredService<HttpClient>(),
+    gptKey
+));
 
 
 builder.Services.AddAuthorizationCore();

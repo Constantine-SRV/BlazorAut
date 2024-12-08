@@ -1,41 +1,74 @@
 ﻿@page "/appsettings"
 @using Microsoft.EntityFrameworkCore
 @inject BlazorAut.Data.ApplicationDbContext DbContext
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject GetUserRolesService GetUserRolesService
 
 <PageTitle>App Settings</PageTitle>
 
 <h3>App Settings</h3>
 
-@if (appSettings == null)
+@if (isAdmin)
 {
-    <p><em>Loading...</em></p>
+    @if (appSettings == null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Key</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var setting in appSettings)
+                {
+                    <tr>
+                        <td>@setting.Key</td>
+                        <td>code-setting.Value</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
 }
 else
 {
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Key</th>
-                <th>Value</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var setting in appSettings)
-            {
-                <tr>
-                    <td>@setting.Key</td>
-                    <td>@setting.Value</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <h4>Access Denied</h4>
+    <p>You do not have permission to view this page.</p>
 }
 
 @code {
     private List<BlazorAut.Data.AppSetting> appSettings;
+    private bool isAdmin = false;
+    private List<string> userRoles = new();
 
     protected override async Task OnInitializedAsync()
     {
-        appSettings = await DbContext.AppSettings.ToListAsync();
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity != null && user.Identity.IsAuthenticated)
+        {
+            var email = user.Identity.Name;
+            userRoles = await GetUserRolesService.GetUserRolesByEmail(email);
+            isAdmin = userRoles.Contains("Admin");
+
+            if (isAdmin)
+            {
+                try
+                {
+                    appSettings = await DbContext.AppSettings.ToListAsync();
+                }
+                catch (Exception ex)
+                {
+                    // Обработка ошибок при получении настроек
+                    Console.Error.WriteLine($"Error fetching app settings: {ex.Message}");
+                }
+            }
+        }
     }
 }
