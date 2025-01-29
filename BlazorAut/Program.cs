@@ -72,6 +72,8 @@ var smtpUser = appSettings["SmtpUser"];
 var smtpPass = appSettings["SmtpPass"];
 var key = Encoding.UTF8.GetBytes(secretKey);
 var tokenExpirationDays = int.Parse(appSettings["TokenExpirationDays"]);
+var AZURE_OPENAI_ENDPOINT = appSettings["AZURE_OPENAI_ENDPOINT"];
+var AZURE_OPENAI_API_KEY = appSettings["AZURE_OPENAI_API_KEY"];
 
 builder.Services.AddHttpClient();
 
@@ -114,6 +116,11 @@ builder.Services.AddScoped<IChatService>(provider => new ChatService(
     gptKey
 ));
 
+builder.Services.AddScoped<IChatAzureService>(provider => new ChatAzureService(
+    provider.GetRequiredService<HttpClient>(),
+    AZURE_OPENAI_ENDPOINT,
+    AZURE_OPENAI_API_KEY
+));
 
 builder.Services.AddAuthorizationCore();
 builder.Services.AddHttpContextAccessor();

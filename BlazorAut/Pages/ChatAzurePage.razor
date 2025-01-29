@@ -1,0 +1,161 @@
+﻿@page "/chatazure"
+@using Markdig
+@using Microsoft.JSInterop
+@using BlazorAut.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IChatAzureService ChatAzureService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject GetUserRolesService GetUserRolesService
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>Chat with Azure GPT</PageTitle>
+
+<h3>Chat with Azure GPT</h3>
+
+@if (isAdmin)
+{
+    <div class="mb-3 row g-2 align-items-center">
+        <div class="col-auto">
+            <select @bind="selectedDeployment" class="form-select">
+                @foreach (var deployment in availableDeployments)
+                {
+                    <option value="@deployment">@deployment</option>
+                }
+            </select>
+        </div>
+        <div class="col-auto flex-grow-1">
+            <textarea @bind="context" rows="3" class="form-control" placeholder="Context will be added here..."></textarea>
+        </div>
+        <div class="col-auto d-flex flex-column">
+            <button @onclick="SendMessage" class="btn btn-primary mb-2">Send</button>
+            <button @onclick="AddToContext" class="btn btn-secondary mb-2">Add to Context</button>
+            <button @onclick="ClearContext" class="btn btn-danger">Clear Context</button>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <textarea @bind="userMessage" rows="4" class="form-control" placeholder="Enter your message..."></textarea>
+    </div>
+
+    <div>
+        <h4>Response:</h4>
+        @if (!string.IsNullOrEmpty(gptResponse))
+        {
+            <div class="markdown-content">
+                @((MarkupString)RenderMarkdown(gptResponse))
+            </div>
+        }
+    </div>
+}
+else
+{
+    <h4>Access Denied</h4>
+    <p>You do not have permission to view this page.</p>
+}
+
+@code {
+    private string userMessage = string.Empty;
+    private string gptResponse = string.Empty;
+    private string selectedDeployment = string.Empty; // Default deployment
+    private List<string> availableDeployments = new List<string>();
+    private string context = string.Empty; // Инициализируем как пустую строку
+    private bool isAdmin = false;
+    private List<string> userRoles = new List<string>();
+
+    [Inject]
+    private IJSRuntime JSRuntime { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity != null && user.Identity.IsAuthenticated)
+        {
+            var email = user.Identity.Name;
+            userRoles = await GetUserRolesService.GetUserRolesByEmail(email);
+            isAdmin = userRoles.Contains("Admin");
+
+            if (isAdmin)
+            {
+                try
+                {
+                    availableDeployments = await ChatAzureService.GetAvailableDeploymentsAsync();
+                    if (availableDeployments.Any())
+                    {
+                        selectedDeployment = availableDeployments.First();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Handle errors when fetching deployments
+                    Console.Error.WriteLine($"Error fetching deployments: {ex.Message}");
+                }
+            }
+        }
+    }
+
+    private async Task SendMessage()
+    {
+        if (isAdmin && !string.IsNullOrWhiteSpace(userMessage))
+        {
+            gptResponse = "Loading...";
+            try
+            {
+                // Combine context with user message
+                var fullMessage = $"{context}\n\n{userMessage}";
+                gptResponse = await ChatAzureService.GetChatResponseAsync(fullMessage, selectedDeployment);
+                // After receiving the response, render Markdown and add copy buttons
+                await InvokeAsync(StateHasChanged);
+                await AddCopyButtons();
+            }
+            catch (Exception ex)
+            {
+                gptResponse = $"Error: {ex.Message}";
+            }
+        }
+    }
+
+    private string RenderMarkdown(string markdown)
+    {
+        var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+        var html = Markdown.ToHtml(markdown, pipeline);
+
+        // Add unique IDs to each code block and append "Copy Code" button
+        int codeBlockIndex = 0;
+        html = System.Text.RegularExpressions.Regex.Replace(html, "<pre><code>(.*?)</code></pre>", match =>
+        {
+            codeBlockIndex++;
+            var codeId = $"codeBlockAzure{codeBlockIndex}";
+            return $"<pre><code id=\"{codeId}\">{System.Net.WebUtility.HtmlEncode(match.Groups[1].Value)}</code></pre>" +
+                   $"<button class=\"copy-button btn btn-sm btn-outline-secondary mb-3\" onclick=\"copyCode('{codeId}')\">Copy Code</button>";
+        }, System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        return html;
+    }
+
+    private async Task AddCopyButtons()
+    {
+        // Кнопки уже добавлены в методе RenderMarkdown
+        // Если нужно добавить дополнительные действия, делайте это здесь
+    }
+
+    private void AddToContext()
+    {
+        if (!string.IsNullOrWhiteSpace(userMessage) && !string.IsNullOrWhiteSpace(gptResponse))
+        {
+            // Форматируем добавляемый контекст
+            var newContext = $"User: {userMessage}\nGPT: {gptResponse}\n\n";
+            context += newContext;
+            // Очистим поля ввода после добавления
+            userMessage = string.Empty;
+            gptResponse = string.Empty;
+        }
+    }
+
+    private void ClearContext()
+    {
+        context = string.Empty;
+    }
+}
